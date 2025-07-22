@@ -1,0 +1,3 @@
+picamera2
+pillow
+escpos
