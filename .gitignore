@@ -2,3 +2,5 @@ people.json
 ./people.json
 /files
 files
+/pb/*
+!/pb/pb_migrations
