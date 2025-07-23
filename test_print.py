@@ -18,7 +18,7 @@ def test_print():
         p.textln("Dette var")
         p.textln("mer vanskelig")
         p.textln("enn man skulle tro")
-
+        p.ln(4)
         #p.cut()
         
         print("Test message sent to printer successfully!")
