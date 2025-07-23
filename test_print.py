@@ -15,8 +15,9 @@ def test_print():
         p.text("Hello Again!\n")
         
         p.set(align='left', bold=False)
-        p.text("This should work now...\n\n")
-        p.ln(5)
+        p.textln("Dette var")
+        p.textln("mer vanskelig")
+        p.textln("enn man skulle tro")
 
         #p.cut()
         
