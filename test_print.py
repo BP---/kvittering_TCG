@@ -15,6 +15,7 @@ def test_print():
         
         p.set(align='left', bold=False)
         p.text("This should work now...\n\n")
+        p.ln(5)
 
         #p.cut()
         
