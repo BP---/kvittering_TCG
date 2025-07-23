@@ -16,7 +16,7 @@ def test_print():
         p.set(align='left', bold=False)
         p.text("This should work now...\n\n")
 
-        p.cut()
+        #p.cut()
         
         print("Test message sent to printer successfully!")
 
