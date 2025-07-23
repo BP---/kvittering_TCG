@@ -8,7 +8,7 @@ def test_print():
     """Initializes the printer with a specific output endpoint."""
     try:
         # THE KEY CHANGE IS HERE: we add out_ep=0x02
-        p = Usb(PRINTER_VENDOR_ID, PRINTER_PRODUCT_ID, out_ep=0x02)
+        p = Usb(PRINTER_VENDOR_ID, PRINTER_PRODUCT_ID, out_ep=0x03)
 
         p.set(align='center', bold=True)
         p.text("Hello Again!\n")
