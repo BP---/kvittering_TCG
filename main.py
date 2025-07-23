@@ -52,6 +52,10 @@ class TCGApp:
         # Setup UI
         self.setup_ui()
         
+        # Bind Enter key to generate receipt
+        self.root.bind('<Return>', lambda event: self.generate_receipt_threaded())
+        self.root.bind('<KP_Enter>', lambda event: self.generate_receipt_threaded())  # Numpad Enter
+        
         # Check initial connections
         self.check_connections()
     
