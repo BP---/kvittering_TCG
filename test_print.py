@@ -1,30 +1,38 @@
 from escpos.printer import Usb
 
 # --- Configuration ---
-# These are the IDs 
+# These are correct! Do not change them.
 PRINTER_VENDOR_ID = 0x0fe6
 PRINTER_PRODUCT_ID = 0x811e
 
-# --- The function to print ---
 def test_print():
-    """Initializes the printer and prints a simple test message."""
+    """Initializes the printer and prints a simple test message using the CORRECT syntax."""
     try:
-        # Initialize the USB printer object with your IDs
+        # This part is correct and should now work without a permissions error
         p = Usb(PRINTER_VENDOR_ID, PRINTER_PRODUCT_ID)
 
         # Let's print something!
-        p.set(align='center', text_type='B') # Set to bold and centered
+        # This is the corrected section:
+        p.set(align='center', bold=True)
         p.text("Hello World!\n")
-        p.set(text_type='NORMAL')
+        
+        p.set(align='left', bold=False) # Turn off bold and set align to left
         p.text("The printer is connected!\n")
-        p.text("Vendor: 0x0fe6, Product: 0x811e\n\n")
+        p.text(f"Vendor: {PRINTER_VENDOR_ID:#06x}, Product: {PRINTER_PRODUCT_ID:#06x}\n\n")
 
+        # You can also change text size
+        p.set(align='center', bold=True, width=2, height=2)
+        p.text("BIG TEXT\n")
+        p.set() # Resets all text settings to default
+
+        p.text("\n")
         p.cut() # Cut the paper
+        
         print("Test message sent to printer successfully!")
 
     except Exception as e:
+        # This part is just for catching any other potential errors
         print(f"An error occurred: {e}")
-        print("This might be a permissions issue. See notes on 'udev rules'.")
 
 # --- Run the test print ---
 if __name__ == "__main__":
