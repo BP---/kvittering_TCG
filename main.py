@@ -1,8 +1,26 @@
+"""
+TCG Receipt Generator
+
+A GUI application that generates receipts with random person data, photos, and thermal printing.
+
+Usage:
+    python main.py                                    # Use default settings (text width: 24, image width: 256)
+    python main.py --text-width 20                   # Custom text width for descriptions
+    python main.py --image-width 200                 # Custom image width in pixels
+    python main.py --text-width 28 --image-width 384 # Custom both settings
+
+Arguments:
+    --text-width: Width for text wrapping in characters (default: 24)
+    --image-width: Width for processed images in pixels (default: 256)
+"""
+
 import tkinter as tk
 from tkinter import messagebox, ttk
 import requests
 from datetime import datetime
 import threading
+import argparse
+import sys
 from typing import Dict, Any, Optional
 
 # Import functions from other modules
@@ -39,9 +57,25 @@ RECEIPTS_COLLECTION = "receipts"
 PRINTER_VENDOR_ID = 0x0fe6
 PRINTER_PRODUCT_ID = 0x811e
 
+# Default settings (can be overridden by command line arguments)
+DEFAULT_TEXT_WIDTH = 24  # Smaller default for description text
+DEFAULT_IMAGE_WIDTH = 256  # Smaller default image size
+
+def parse_arguments():
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(description='TCG Receipt Generator')
+    parser.add_argument('--text-width', type=int, default=DEFAULT_TEXT_WIDTH,
+                       help=f'Width for text wrapping (default: {DEFAULT_TEXT_WIDTH})')
+    parser.add_argument('--image-width', type=int, default=DEFAULT_IMAGE_WIDTH,
+                       help=f'Width for processed images (default: {DEFAULT_IMAGE_WIDTH})')
+    return parser.parse_args()
+
 class TCGApp:
-    def __init__(self, root):
+    def __init__(self, root, text_width=DEFAULT_TEXT_WIDTH, image_width=DEFAULT_IMAGE_WIDTH):
         self.root = root
+        self.text_width = text_width
+        self.image_width = image_width
+        
         self.root.title("TCG Receipt Generator")
         self.root.geometry("400x300")
         self.root.resizable(False, False)
@@ -77,33 +111,39 @@ class TCGApp:
         # Title
         title_label = ttk.Label(main_frame, text="TCG Receipt Generator", 
                                font=("Arial", 16, "bold"))
-        title_label.grid(row=0, column=0, columnspan=2, pady=(0, 20))
+        title_label.grid(row=0, column=0, columnspan=2, pady=(0, 10))
+        
+        # Settings display
+        settings_label = ttk.Label(main_frame, 
+                                 text=f"Settings: Text width: {self.text_width}, Image width: {self.image_width}",
+                                 font=("Arial", 8))
+        settings_label.grid(row=1, column=0, columnspan=2, pady=(0, 15))
         
         # Status indicators
         self.db_status_label = ttk.Label(main_frame, text="Database: Checking...", 
                                         foreground="orange")
-        self.db_status_label.grid(row=1, column=0, columnspan=2, pady=(0, 10))
+        self.db_status_label.grid(row=2, column=0, columnspan=2, pady=(0, 10))
         
         self.printer_status_label = ttk.Label(main_frame, text="Printer: Not tested", 
                                             foreground="gray")
-        self.printer_status_label.grid(row=2, column=0, columnspan=2, pady=(0, 20))
+        self.printer_status_label.grid(row=3, column=0, columnspan=2, pady=(0, 20))
         
         # Main action button
         self.generate_button = ttk.Button(main_frame, text="Generate Receipt", 
                                         command=self.generate_receipt_threaded,
                                         style="Accent.TButton")
-        self.generate_button.grid(row=3, column=0, columnspan=2, pady=(0, 20), 
+        self.generate_button.grid(row=4, column=0, columnspan=2, pady=(0, 20), 
                                 ipadx=20, ipady=10)
         
         # Progress bar
         self.progress = ttk.Progressbar(main_frame, mode='indeterminate')
-        self.progress.grid(row=4, column=0, columnspan=2, sticky=(tk.W, tk.E), 
+        self.progress.grid(row=5, column=0, columnspan=2, sticky=(tk.W, tk.E), 
                           pady=(0, 10))
         
         # Status text
         self.status_label = ttk.Label(main_frame, text="Ready", 
                                     foreground="green")
-        self.status_label.grid(row=5, column=0, columnspan=2)
+        self.status_label.grid(row=6, column=0, columnspan=2)
         
         # Configure grid weights
         self.root.columnconfigure(0, weight=1)
@@ -153,7 +193,7 @@ class TCGApp:
             processed_image = None
             if CAMERA_AVAILABLE:
                 try:
-                    processed_image = take_and_process_photo()
+                    processed_image = self.take_and_process_photo_custom()
                     if not processed_image:
                         print("Failed to capture and process photo.")
                 except Exception as e:
@@ -219,8 +259,8 @@ class TCGApp:
             # Print description
             printer.set(align='left', bold=False)
             description = person.get('description', 'No description available')
-            # Wrap text for thermal printer (usually ~32 characters wide)
-            wrapped_description = self.wrap_text(description, 32)
+            # Use configurable text width for description
+            wrapped_description = self.wrap_text(description, self.text_width)
             for line in wrapped_description:
                 printer.text(f"{line}\n")
             printer.ln(1)
@@ -238,8 +278,8 @@ class TCGApp:
                 printer.ln(2)
             
             # Print footer
-            printer.set(align='center', bold=False)
-            printer.text("Thank you!\n")
+            # printer.set(align='center', bold=False)
+            # printer.text("Thank you!\n")
             printer.ln(4)
             
             printer.close()
@@ -260,7 +300,7 @@ class TCGApp:
         print()
         
         description = person.get('description', 'No description available')
-        wrapped_description = self.wrap_text(description, 32)
+        wrapped_description = self.wrap_text(description, self.text_width)
         for line in wrapped_description:
             print(line)
         print()
@@ -276,6 +316,60 @@ class TCGApp:
         print("       Thank you!")
         print()
         print("="*40)
+    
+    def take_and_process_photo_custom(self):
+        """
+        Custom version of take_and_process_photo that uses configurable image width.
+        """
+        if not CAMERA_AVAILABLE or not PIL_AVAILABLE:
+            return None
+            
+        import time
+        from picamera2 import Picamera2
+        
+        # The filename for the initial high-resolution capture.
+        CAPTURE_FILENAME = "capture.jpg"
+        
+        # 1. --- Initialize and capture with the camera ---
+        print("Initializing camera...")
+        picam2 = Picamera2()
+        
+        # Create a configuration for a still capture
+        config = picam2.create_still_configuration()
+        picam2.configure(config)
+        
+        picam2.start()
+        # It's important to give the camera's sensor a moment to adjust
+        # to light levels, auto-focus, etc.
+        print("Taking picture in 2 seconds...")
+        time.sleep(2)
+        
+        # Capture the image and save it to a file
+        picam2.capture_file(CAPTURE_FILENAME)
+        print(f"Picture saved as {CAPTURE_FILENAME}")
+        picam2.stop()
+
+        # 2. --- Process the image using Pillow ---
+        print(f"Processing image for thermal look (width: {self.image_width})...")
+        with Image.open(CAPTURE_FILENAME) as img:
+            # Resize the image to the configured width, maintaining aspect ratio
+            original_width, original_height = img.size
+            aspect_ratio = original_height / float(original_width)
+            new_height = int(self.image_width * aspect_ratio)
+            resized_img = img.resize((self.image_width, new_height))
+
+            # Convert to grayscale ('L' mode in Pillow)
+            grayscale_img = resized_img.convert('L')
+
+            # DITHERING: This is the most important step!
+            # It converts the grayscale image to pure black and white ('1' mode)
+            # using a pattern of dots to simulate shades of gray. This looks
+            # much better on a thermal printer than simple thresholding.
+            # Floyd-Steinberg is a popular and effective dithering algorithm.
+            dithered_img = grayscale_img.convert('1', dither=Image.Dither.FLOYDSTEINBERG)
+            
+            print("Image processing complete.")
+            return dithered_img
     
     def wrap_text(self, text: str, width: int) -> list:
         """Wrap text to specified width."""
@@ -327,8 +421,15 @@ class TCGApp:
 
 def main():
     """Main function to run the application."""
+    # Parse command line arguments
+    args = parse_arguments()
+    
+    print(f"Starting TCG Receipt Generator with settings:")
+    print(f"  Text width: {args.text_width} characters")
+    print(f"  Image width: {args.image_width} pixels")
+    
     root = tk.Tk()
-    app = TCGApp(root)
+    app = TCGApp(root, text_width=args.text_width, image_width=args.image_width)
     root.mainloop()
 
 if __name__ == "__main__":
