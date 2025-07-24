@@ -244,7 +244,7 @@ class TCGApp:
             printer.open()
             
             # Print header
-            printer.set(align='center', bold=True, double_height=True)
+            printer.set(align='center', bold=True, double_height=True, font='b')
             printer.text("TCG RECEIPT\n")
             printer.ln(1)
             
@@ -258,33 +258,35 @@ class TCGApp:
             
             # Print description with configurable text size
             description = person.get('description', 'No description available')
+            printer.set(align='left', bold=False)
+            printer.text(description)
             
             # Calculate height and width multipliers based on text_width setting
             # Smaller text_width values will result in smaller text
             # Default (24) = normal size (1x), smaller values = smaller text
-            size_multiplier = max(1, self.text_width // 12)  # Scale down for smaller widths
-            if self.text_width <= 12:
-                height_mult = 1
-                width_mult = 1
-            elif self.text_width <= 18:
-                height_mult = 1
-                width_mult = 1
-            elif self.text_width <= 24:
-                height_mult = 1
-                width_mult = 1
-            else:
-                height_mult = min(2, self.text_width // 20)
-                width_mult = min(2, self.text_width // 20)
+            # size_multiplier = max(1, self.text_width // 12)  # Scale down for smaller widths
+            # if self.text_width <= 12:
+            #     height_mult = 1
+            #     width_mult = 1
+            # elif self.text_width <= 18:
+            #     height_mult = 1
+            #     width_mult = 1
+            # elif self.text_width <= 24:
+            #     height_mult = 1
+            #     width_mult = 1
+            # else:
+            #     height_mult = min(2, self.text_width // 20)
+            #     width_mult = min(2, self.text_width // 20)
             
-            printer.set(align='left', bold=False, height=height_mult, width=width_mult)
+            # printer.set(align='left', bold=False, height=height_mult, width=width_mult)
             
-            # Adjust wrapping width based on actual text size
-            # Larger text takes more space, so we need fewer characters per line
-            effective_width = self.text_width // max(1, (height_mult + width_mult) // 2)
-            wrapped_description = self.wrap_text(description, effective_width)
-            for line in wrapped_description:
-                printer.text(f"{line}\n")
-            printer.ln(1)
+            # # Adjust wrapping width based on actual text size
+            # # Larger text takes more space, so we need fewer characters per line
+            # effective_width = self.text_width // max(1, (height_mult + width_mult) // 2)
+            # wrapped_description = self.wrap_text(description, effective_width)
+            # for line in wrapped_description:
+            #     printer.text(f"{line}\n")
+            # printer.ln(1)
             
             # Print date and time
             current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
