@@ -9,7 +9,8 @@ PRODUCT_ID = 0x811e
 
 try:
     # Initialize the printer
-    p = printer.Usb(VENDOR_ID, PRODUCT_ID)
+    p = Usb(VENDOR_ID, PRODUCT_ID, 0, 
+                         profile="simple", in_ep=0x82, out_ep=0x03)
 
     # --- Print a Title ---
     # Let's start with a nice, big, centered title.
