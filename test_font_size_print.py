@@ -13,7 +13,7 @@ try:
 
     # --- Print a Title ---
     # Let's start with a nice, big, centered title.
-    p.set(align='center', text_type='B', width=2, height=2)
+    p.set(align='center', width=2, height=2)
     p.text("Font Size Demo\n\n")
 
     # --- Print Very Small Text (the default) ---
