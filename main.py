@@ -260,6 +260,7 @@ class TCGApp:
             description = person.get('description', 'No description available')
             printer.set(align='left', bold=False)
             printer.text(description)
+            printer.ln(1)
             
             # Calculate height and width multipliers based on text_width setting
             # Smaller text_width values will result in smaller text
@@ -371,24 +372,35 @@ class TCGApp:
         # The filename for the initial high-resolution capture.
         CAPTURE_FILENAME = "capture.jpg"
         
-        # 1. --- Initialize and capture with the camera ---
-        print("Initializing camera...")
-        picam2 = Picamera2()
-        
-        # Create a configuration for a still capture
-        config = picam2.create_still_configuration()
-        picam2.configure(config)
-        
-        picam2.start()
-        # It's important to give the camera's sensor a moment to adjust
-        # to light levels, auto-focus, etc.
-        print("Taking picture in 2 seconds...")
-        time.sleep(2)
-        
-        # Capture the image and save it to a file
-        picam2.capture_file(CAPTURE_FILENAME)
-        print(f"Picture saved as {CAPTURE_FILENAME}")
-        picam2.stop()
+        picam2 = None
+        try:
+            # 1. --- Initialize and capture with the camera ---
+            print("Initializing camera...")
+            picam2 = Picamera2()
+            
+            # Create a configuration for a still capture
+            config = picam2.create_still_configuration()
+            picam2.configure(config)
+            
+            picam2.start()
+            # It's important to give the camera's sensor a moment to adjust
+            # to light levels, auto-focus, etc.
+            print("Taking picture in 2 seconds...")
+            time.sleep(2)
+            
+            # Capture the image and save it to a file
+            picam2.capture_file(CAPTURE_FILENAME)
+            print(f"Picture saved as {CAPTURE_FILENAME}")
+            
+        finally:
+            # Ensure proper cleanup of camera resources
+            if picam2 is not None:
+                try:
+                    picam2.stop()
+                    picam2.close()
+                    print("Camera properly closed")
+                except Exception as e:
+                    print(f"Warning: Error during camera cleanup: {e}")
 
         # 2. --- Process the image using Pillow ---
         print(f"Processing image for thermal look (width: {self.image_width})...")
