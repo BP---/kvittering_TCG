@@ -276,7 +276,7 @@ class TCGApp:
                 height_mult = min(2, self.text_width // 20)
                 width_mult = min(2, self.text_width // 20)
             
-            printer.set(align='left', bold=False, height=0.5)
+            printer.set(align='left', bold=False, height=height_mult, width=width_mult)
             
             # Adjust wrapping width based on actual text size
             # Larger text takes more space, so we need fewer characters per line
