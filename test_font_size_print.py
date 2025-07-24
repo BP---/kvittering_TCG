@@ -19,13 +19,18 @@ try:
     # --- Print Very Small Text (the default) ---
     # Resetting the printer state is good practice.
     # width=1 and height=1 is the smallest font.
-    p.set(align='left', width=1, height=1)
+    p.set(align='left', width=1, height=1, font='a')
+    p.text("This is the smallest text (width=1, height=1).\n")
+    p.text("The quick brown fox jumps over the lazy dog.\n\n")
+
+
+    p.set(align='left', width=1, height=1, font='b')
     p.text("This is the smallest text (width=1, height=1).\n")
     p.text("The quick brown fox jumps over the lazy dog.\n\n")
     
     # --- Print a Bit Bigger Text ---
     # Set width and height to 2 to make characters twice as big.
-    p.set(width=2, height=2)
+    p.set(width=2, height=2, font='b')
     p.text("This is bigger text (width=2, height=2).\n\n")
 
     # --- Print an Even Bigger Text ---
