@@ -1,4 +1,4 @@
-from escpos import Usb
+from escpos.printer import Usb
 from escpos.exceptions import DeviceNotFoundError
 
 # --- IMPORTANT ---
