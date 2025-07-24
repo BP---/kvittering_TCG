@@ -4,13 +4,13 @@ TCG Receipt Generator
 A GUI application that generates receipts with random person data, photos, and thermal printing.
 
 Usage:
-    python main.py                                    # Use default settings (text width: 24, image width: 256)
-    python main.py --text-width 20                   # Custom text width for descriptions
+    python main.py                                    # Use default settings (text size: 24, image width: 256)
+    python main.py --text-width 20                   # Smaller text size for descriptions
     python main.py --image-width 200                 # Custom image width in pixels
-    python main.py --text-width 28 --image-width 384 # Custom both settings
+    python main.py --text-width 28 --image-width 384 # Larger text and image size
 
 Arguments:
-    --text-width: Width for text wrapping in characters (default: 24)
+    --text-width: Controls text size - smaller values create smaller text (default: 24)
     --image-width: Width for processed images in pixels (default: 256)
 """
 
@@ -58,14 +58,14 @@ PRINTER_VENDOR_ID = 0x0fe6
 PRINTER_PRODUCT_ID = 0x811e
 
 # Default settings (can be overridden by command line arguments)
-DEFAULT_TEXT_WIDTH = 24  # Smaller default for description text
+DEFAULT_TEXT_WIDTH = 24  # Controls text size - smaller values = smaller text
 DEFAULT_IMAGE_WIDTH = 256  # Smaller default image size
 
 def parse_arguments():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(description='TCG Receipt Generator')
     parser.add_argument('--text-width', type=int, default=DEFAULT_TEXT_WIDTH,
-                       help=f'Width for text wrapping (default: {DEFAULT_TEXT_WIDTH})')
+                       help=f'Text size control - smaller values = smaller text (default: {DEFAULT_TEXT_WIDTH})')
     parser.add_argument('--image-width', type=int, default=DEFAULT_IMAGE_WIDTH,
                        help=f'Width for processed images (default: {DEFAULT_IMAGE_WIDTH})')
     return parser.parse_args()
@@ -115,7 +115,7 @@ class TCGApp:
         
         # Settings display
         settings_label = ttk.Label(main_frame, 
-                                 text=f"Settings: Text width: {self.text_width}, Image width: {self.image_width}",
+                                 text=f"Settings: Text size: {self.text_width}, Image width: {self.image_width}",
                                  font=("Arial", 8))
         settings_label.grid(row=1, column=0, columnspan=2, pady=(0, 15))
         
@@ -256,11 +256,32 @@ class TCGApp:
             printer.text(f"Rarity: {person.get('rarity', 'Unknown')}\n")
             printer.ln(1)
             
-            # Print description
-            printer.set(align='left', bold=False)
+            # Print description with configurable text size
             description = person.get('description', 'No description available')
-            # Use configurable text width for description
-            wrapped_description = self.wrap_text(description, self.text_width)
+            
+            # Calculate height and width multipliers based on text_width setting
+            # Smaller text_width values will result in smaller text
+            # Default (24) = normal size (1x), smaller values = smaller text
+            size_multiplier = max(1, self.text_width // 12)  # Scale down for smaller widths
+            if self.text_width <= 12:
+                height_mult = 1
+                width_mult = 1
+            elif self.text_width <= 18:
+                height_mult = 1
+                width_mult = 1
+            elif self.text_width <= 24:
+                height_mult = 1
+                width_mult = 1
+            else:
+                height_mult = min(2, self.text_width // 20)
+                width_mult = min(2, self.text_width // 20)
+            
+            printer.set(align='left', bold=False, height=height_mult, width=width_mult)
+            
+            # Adjust wrapping width based on actual text size
+            # Larger text takes more space, so we need fewer characters per line
+            effective_width = self.text_width // max(1, (height_mult + width_mult) // 2)
+            wrapped_description = self.wrap_text(description, effective_width)
             for line in wrapped_description:
                 printer.text(f"{line}\n")
             printer.ln(1)
@@ -299,8 +320,26 @@ class TCGApp:
         print(f"    Rarity: {person.get('rarity', 'Unknown')}")
         print()
         
+        # Calculate and show text size settings
+        if self.text_width <= 12:
+            height_mult = 1
+            width_mult = 1
+        elif self.text_width <= 18:
+            height_mult = 1
+            width_mult = 1
+        elif self.text_width <= 24:
+            height_mult = 1
+            width_mult = 1
+        else:
+            height_mult = min(2, self.text_width // 20)
+            width_mult = min(2, self.text_width // 20)
+        
+        effective_width = self.text_width // max(1, (height_mult + width_mult) // 2)
+        
+        print(f"[Text size: {width_mult}x width, {height_mult}x height, effective wrap: {effective_width}]")
+        
         description = person.get('description', 'No description available')
-        wrapped_description = self.wrap_text(description, self.text_width)
+        wrapped_description = self.wrap_text(description, effective_width)
         for line in wrapped_description:
             print(line)
         print()
