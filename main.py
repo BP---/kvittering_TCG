@@ -77,11 +77,20 @@ class TCGApp:
         self.image_width = image_width
         
         self.root.title("TCG Receipt Generator")
-        self.root.geometry("400x300")
-        self.root.resizable(False, False)
+        # Get screen dimensions
+        screen_width = self.root.winfo_screenwidth()
+        screen_height = self.root.winfo_screenheight()
         
-        # Center the window
-        self.center_window()
+        # Option 1: Full screen minus taskbar (recommended for 3.5" screen)
+        # Adjust height to account for taskbar (usually 40-60 pixels)
+        taskbar_height = 50  # Adjust this value if needed
+        self.root.geometry(f"{screen_width}x{screen_height - taskbar_height}+0+0")
+        
+        # Option 2: True fullscreen (uncomment to use instead)
+        # self.root.attributes('-fullscreen', True)
+        # self.root.bind('<Escape>', lambda e: self.root.attributes('-fullscreen', False))
+        
+        self.root.resizable(True, True)  # Allow resizing for better flexibility
         
         # Setup UI
         self.setup_ui()
@@ -90,11 +99,19 @@ class TCGApp:
         self.root.bind('<Return>', lambda event: self.generate_receipt_threaded())
         self.root.bind('<KP_Enter>', lambda event: self.generate_receipt_threaded())  # Numpad Enter
         
+        # Add escape key binding to exit fullscreen mode
+        self.root.bind('<Escape>', self.toggle_fullscreen)
+        
         # Check initial connections
         self.check_connections()
     
+    def toggle_fullscreen(self, event=None):
+        """Toggle between fullscreen and windowed mode."""
+        current_state = self.root.attributes('-fullscreen')
+        self.root.attributes('-fullscreen', not current_state)
+        
     def center_window(self):
-        """Center the window on the screen."""
+        """Center the window on the screen (for windowed mode)."""
         self.root.update_idletasks()
         width = self.root.winfo_width()
         height = self.root.winfo_height()
