@@ -1,8 +1,81 @@
 from escpos.printer import Usb
+import re
 
 # --- Configuration ---
 PRINTER_VENDOR_ID = 0x0fe6
 PRINTER_PRODUCT_ID = 0x811e
+
+# Norwegian character mapping to UTF-8 byte sequences
+NORWEGIAN_CHAR_MAP = {
+    'ø': '\xF8',  # UTF-8 byte for ø
+    'Ø': '\xD8',  # UTF-8 byte for Ø
+    'å': '\xE5',  # UTF-8 byte for å
+    'Å': '\xC5',  # UTF-8 byte for Å
+    'æ': '\xE6',  # UTF-8 byte for æ
+    'Æ': '\xC6',  # UTF-8 byte for Æ
+}
+
+def replace_norwegian_chars(text):
+    """Replace Norwegian characters with their UTF-8 byte representations."""
+    for norwegian_char, utf8_byte in NORWEGIAN_CHAR_MAP.items():
+        text = text.replace(norwegian_char, utf8_byte)
+    return text
+
+def replace_norwegian_chars_regex(text):
+    """Alternative regex-based approach to replace Norwegian characters."""
+    # Create a regex pattern that matches any Norwegian character
+    pattern = '[øØåÅæÆ]'
+    
+    def replace_match(match):
+        char = match.group(0)
+        return NORWEGIAN_CHAR_MAP.get(char, char)
+    
+    return re.sub(pattern, replace_match, text)
+
+def process_ingredients(ingredients_list):
+    """Process a list of ingredients, replacing Norwegian characters."""
+    processed_ingredients = []
+    for ingredient in ingredients_list:
+        # You can use either method:
+        processed_ingredient = replace_norwegian_chars(ingredient)
+        # Or: processed_ingredient = replace_norwegian_chars_regex(ingredient)
+        processed_ingredients.append(processed_ingredient)
+    return processed_ingredients
+
+def test_encoding_approaches():
+    """Test different approaches for Norwegian characters without using charcode."""
+    test_ingredients = ["Oksekjøtt", "Løkpulver", "Hvitløkspulver"]
+    
+    print("=== Testing Different Encoding Approaches ===")
+    
+    # Approach 1: Direct UTF-8 byte replacement
+    print("\nApproach 1: UTF-8 byte replacement")
+    for ingredient in test_ingredients:
+        processed = replace_norwegian_chars(ingredient)
+        print(f"  {ingredient} -> {processed}")
+    
+    # Approach 2: Regex-based replacement
+    print("\nApproach 2: Regex replacement")
+    for ingredient in test_ingredients:
+        processed = replace_norwegian_chars_regex(ingredient)
+        print(f"  {ingredient} -> {processed}")
+    
+    # Approach 3: Try different encoding/decoding
+    print("\nApproach 3: Encoding attempts")
+    for ingredient in test_ingredients:
+        try:
+            # Try latin-1 encoding
+            encoded = ingredient.encode('latin-1')
+            print(f"  {ingredient} -> latin-1: {encoded}")
+        except:
+            print(f"  {ingredient} -> latin-1: Failed")
+        
+        try:
+            # Try cp850 encoding  
+            encoded = ingredient.encode('cp850')
+            print(f"  {ingredient} -> cp850: {encoded}")
+        except:
+            print(f"  {ingredient} -> cp850: Failed")
 
 def test_encoding_options():
     """Test different encoding options for Norwegian characters."""
@@ -52,36 +125,49 @@ def test_encoding_options():
         print(f"Test failed: {e}")
 
 def test_print():
-    """Initializes the printer with a specific output endpoint."""
+    """Test printing with Norwegian character replacement."""
+    # List of ingredients with Norwegian characters
+    ingredients = [
+        "Oksekjøtt",
+        "Worcestershire saus", 
+        "Soya saus",
+        "Brunt sukker",
+        "Løkpulver",
+        "Hvitløkspulver",
+        "Paprikapulver",
+        "Gochugaru",
+        "Kajennepepper"
+    ]
+    
     try:
-        # THE KEY CHANGE IS HERE: we add out_ep=0x02
-        p = Usb(PRINTER_VENDOR_ID, PRINTER_PRODUCT_ID, 0, profile="simple", in_ep=0x82,  out_ep=0x03)
+        p = Usb(PRINTER_VENDOR_ID, PRINTER_PRODUCT_ID, 0, profile="simple", in_ep=0x82, out_ep=0x03)
         print(p.is_usable())
         p.open()
         
-        # Set encoding to handle Norwegian characters
-        p.charcode('ISO8859-1')  # Norwegian/Danish codepage
-        
+        # Don't set any special charcode - use default
         p.set(align='center', bold=True)
         p.text("BPs jerky\n")
-        p.textln("----------")
+        p.text("----------\n")
         
         p.set(align='left', bold=False)
         p.ln(2)
-        # Encode Norwegian characters properly
-        p.text("Oksekjøtt\n")
-        p.text("Worcestershire saus\n")
-        p.text("Soya saus\n")
-        p.text("Brunt sukker\n")
-        p.text("Løkpulver\n")
-        p.text("Hvitløkspulver\n")
-        p.text("Paprikapulver\n")
-        p.text("Gochugaru\n")
-        p.text("Kajennepepper\n")
+        
+        # Process and print ingredients
+        processed_ingredients = process_ingredients(ingredients)
+        for ingredient in processed_ingredients:
+            p.text(f"{ingredient}\n")
+            
         p.ln(2)
         #p.cut()
         
         print("Test message sent to printer successfully!")
+        print("\nOriginal ingredients:")
+        for ingredient in ingredients:
+            print(f"  {ingredient}")
+        print("\nProcessed ingredients:")
+        for ingredient in processed_ingredients:
+            print(f"  {ingredient}")
+            
         p.close()
 
     except Exception as e:
@@ -89,7 +175,8 @@ def test_print():
 
 # --- Run the test print ---
 if __name__ == "__main__":
-    print("Running encoding test...")
-    #test_encoding_options()
-    print("\nRunning regular print test...")
+    print("Testing encoding approaches...")
+    test_encoding_approaches()
+    print("\n" + "="*50)
+    print("Running printer test...")
     test_print()

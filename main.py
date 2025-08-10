@@ -21,6 +21,7 @@ from datetime import datetime
 import threading
 import argparse
 import sys
+import re
 from typing import Dict, Any, Optional
 
 # Import functions from other modules
@@ -60,6 +61,22 @@ PRINTER_PRODUCT_ID = 0x811e
 # Default settings (can be overridden by command line arguments)
 DEFAULT_TEXT_WIDTH = 24  # Controls text size - smaller values = smaller text
 DEFAULT_IMAGE_WIDTH = 256  # Smaller default image size
+
+# Norwegian character mapping to UTF-8 byte sequences
+NORWEGIAN_CHAR_MAP = {
+    'ø': '\xF8',  # UTF-8 byte for ø
+    'Ø': '\xD8',  # UTF-8 byte for Ø
+    'å': '\xE5',  # UTF-8 byte for å
+    'Å': '\xC5',  # UTF-8 byte for Å
+    'æ': '\xE6',  # UTF-8 byte for æ
+    'Æ': '\xC6',  # UTF-8 byte for Æ
+}
+
+def replace_norwegian_chars(text):
+    """Replace Norwegian characters with their UTF-8 byte representations for thermal printer."""
+    for norwegian_char, utf8_byte in NORWEGIAN_CHAR_MAP.items():
+        text = text.replace(norwegian_char, utf8_byte)
+    return text
 
 def setup_printer_encoding(printer):
     """
@@ -318,28 +335,34 @@ class TCGApp:
                          profile="simple", in_ep=0x82, out_ep=0x03)
             printer.open()
             
-            # Set encoding to handle Norwegian characters
-            encoding_success = setup_printer_encoding(printer)
-            if encoding_success:
-                print("Printer encoding configured for Norwegian characters")
+            # Try to set encoding, but don't fail if it doesn't work
+            try:
+                encoding_success = setup_printer_encoding(printer)
+                if encoding_success:
+                    print("Printer encoding configured for Norwegian characters")
+            except Exception as encoding_error:
+                print(f"Encoding setup failed, using character replacement: {encoding_error}")
             
             # Print header
             printer.set(align='center', bold=True, double_height=True, font='b')
             printer.text("IKT RECEIPT\n")
             printer.ln(1)
             
-            # Print person info
+            # Print person info - replace Norwegian characters
             printer.set(align='center', bold=True, double_height=False)
-            printer.text(f"{person.get('name', 'Unknown')}\n")
+            name_processed = replace_norwegian_chars(person.get('name', 'Unknown'))
+            printer.text(f"{name_processed}\n")
             
             printer.set(align='center', bold=False)
-            printer.text(f"Rarity: {person.get('rarity', 'Unknown')}\n")
+            rarity_processed = replace_norwegian_chars(person.get('rarity', 'Unknown'))
+            printer.text(f"Rarity: {rarity_processed}\n")
             printer.ln(1)
             
-            # Print description with configurable text size
+            # Print description with Norwegian character replacement
             description = person.get('description', 'No description available')
+            description_processed = replace_norwegian_chars(description)
             printer.set(align='left', bold=False)
-            printer.text(description)
+            printer.text(description_processed)
             printer.ln(1)
             
             # Calculate height and width multipliers based on text_width setting
