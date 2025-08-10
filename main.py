@@ -61,6 +61,30 @@ PRINTER_PRODUCT_ID = 0x811e
 DEFAULT_TEXT_WIDTH = 24  # Controls text size - smaller values = smaller text
 DEFAULT_IMAGE_WIDTH = 256  # Smaller default image size
 
+def setup_printer_encoding(printer):
+    """
+    Configure printer for Norwegian/Danish characters.
+    Returns True if successful, False otherwise.
+    """
+    try:
+        # Try CP865 first (Norwegian/Danish)
+        printer.charcode('CP865')
+        return True
+    except:
+        try:
+            # Fallback to CP850 (Western European)
+            printer.charcode('CP850')
+            return True
+        except:
+            try:
+                # Final fallback to CP437 (Original IBM PC)
+                printer.charcode('CP437')
+                return True
+            except:
+                # If all encoding attempts fail, continue without encoding
+                print("Warning: Could not set printer encoding for special characters")
+                return False
+
 def parse_arguments():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(description='TCG Receipt Generator')
@@ -293,6 +317,11 @@ class TCGApp:
             printer = Usb(PRINTER_VENDOR_ID, PRINTER_PRODUCT_ID, 0, 
                          profile="simple", in_ep=0x82, out_ep=0x03)
             printer.open()
+            
+            # Set encoding to handle Norwegian characters
+            encoding_success = setup_printer_encoding(printer)
+            if encoding_success:
+                print("Printer encoding configured for Norwegian characters")
             
             # Print header
             printer.set(align='center', bold=True, double_height=True, font='b')
