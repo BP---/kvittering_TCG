@@ -60,7 +60,7 @@ def test_print():
         p.open()
         
         # Set encoding to handle Norwegian characters
-        p.charcode('UTF-8')  # Norwegian/Danish codepage
+        p.charcode('ISO8859-1')  # Norwegian/Danish codepage
         
         p.set(align='center', bold=True)
         p.text("BPs jerky\n")
