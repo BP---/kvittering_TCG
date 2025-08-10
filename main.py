@@ -87,8 +87,8 @@ class TCGApp:
         self.root.geometry(f"{screen_width}x{screen_height - taskbar_height}+0+0")
         
         # Option 2: True fullscreen (uncomment to use instead)
-        # self.root.attributes('-fullscreen', True)
-        # self.root.bind('<Escape>', lambda e: self.root.attributes('-fullscreen', False))
+        self.root.attributes('-fullscreen', True)
+        self.root.bind('<Escape>', lambda e: self.root.attributes('-fullscreen', False))
         
         self.root.resizable(True, True)  # Allow resizing for better flexibility
         
@@ -126,7 +126,7 @@ class TCGApp:
         main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         
         # Title
-        title_label = ttk.Label(main_frame, text="TCG Receipt Generator", 
+        title_label = ttk.Label(main_frame, text="IKT Receipt Generator", 
                                font=("Arial", 16, "bold"))
         title_label.grid(row=0, column=0, columnspan=2, pady=(0, 10))
         
@@ -145,12 +145,22 @@ class TCGApp:
                                             foreground="gray")
         self.printer_status_label.grid(row=3, column=0, columnspan=2, pady=(0, 20))
         
+        # Main action buttons frame
+        buttons_frame = ttk.Frame(main_frame)
+        buttons_frame.grid(row=4, column=0, columnspan=2, pady=(0, 20))
+        
         # Main action button
-        self.generate_button = ttk.Button(main_frame, text="Generate Receipt", 
+        self.generate_button = ttk.Button(buttons_frame, text="Generate Receipt", 
                                         command=self.generate_receipt_threaded,
                                         style="Accent.TButton")
-        self.generate_button.grid(row=4, column=0, columnspan=2, pady=(0, 20), 
+        self.generate_button.grid(row=0, column=0, padx=(0, 10), 
                                 ipadx=20, ipady=10)
+        
+        # Test button
+        self.test_button = ttk.Button(buttons_frame, text="Test", 
+                                    command=self.test_receipt_threaded)
+        self.test_button.grid(row=0, column=1, 
+                            ipadx=10, ipady=5)
         
         # Progress bar
         self.progress = ttk.Progressbar(main_frame, mode='indeterminate')
@@ -185,13 +195,24 @@ class TCGApp:
     def generate_receipt_threaded(self):
         """Run the receipt generation in a separate thread to prevent UI freezing."""
         self.generate_button.config(state="disabled")
+        self.test_button.config(state="disabled")
         self.progress.start()
         
-        thread = threading.Thread(target=self.generate_receipt)
+        thread = threading.Thread(target=self.generate_receipt, args=(False,))
         thread.daemon = True
         thread.start()
     
-    def generate_receipt(self):
+    def test_receipt_threaded(self):
+        """Run the test receipt generation in a separate thread to prevent UI freezing."""
+        self.generate_button.config(state="disabled")
+        self.test_button.config(state="disabled")
+        self.progress.start()
+        
+        thread = threading.Thread(target=self.generate_receipt, args=(True,))
+        thread.daemon = True
+        thread.start()
+    
+    def generate_receipt(self, testing=False):
         """Main function to generate a receipt with photo and person data."""
         try:
             # Step 1: Check database connection
@@ -223,29 +244,42 @@ class TCGApp:
                 self.update_status("Camera not available, continuing without photo...", "orange")
             
             # Step 4: Print receipt
-            self.update_status("Printing receipt...", "blue")
+            print_status = "Printing test receipt..." if testing else "Printing receipt..."
+            self.update_status(print_status, "blue")
             self.print_receipt(person, processed_image)
             
-            # Step 5: Create receipt record in database
-            self.update_status("Saving receipt record...", "blue")
-            self.create_receipt_record(person)
+            # Step 5: Create receipt record in database (skip if testing)
+            if testing:
+                self.update_status("Test mode - skipping database save", "orange")
+            else:
+                self.update_status("Saving receipt record...", "blue")
+                self.create_receipt_record(person)
             
             # Success
-            self.update_status("Receipt generated successfully! ✓", "green")
-            messagebox.showinfo("Success", 
-                              f"Receipt generated for {person.get('name', 'Unknown')} "
-                              f"({person.get('rarity', 'Unknown')} rarity)")
+            if testing:
+                self.update_status("Test receipt generated successfully! ✓", "green")
+                messagebox.showinfo("Test Success", 
+                                  f"Test receipt generated for {person.get('name', 'Unknown')} "
+                                  f"({person.get('rarity', 'Unknown')} rarity)\n\n"
+                                  f"Note: No database entry was created.")
+            else:
+                self.update_status("Receipt generated successfully! ✓", "green")
+                messagebox.showinfo("Success", 
+                                  f"Receipt generated for {person.get('name', 'Unknown')} "
+                                  f"({person.get('rarity', 'Unknown')} rarity)")
             
         except Exception as e:
-            error_msg = f"Error: {str(e)}"
+            error_prefix = "Test Error" if testing else "Error"
+            error_msg = f"{error_prefix}: {str(e)}"
             self.update_status(error_msg, "red")
-            messagebox.showerror("Error", error_msg)
-            print(f"Full error: {e}")
+            messagebox.showerror(error_prefix, error_msg)
+            print(f"Full {error_prefix.lower()}: {e}")
         
         finally:
-            # Re-enable button and stop progress
+            # Re-enable buttons and stop progress
             self.progress.stop()
             self.generate_button.config(state="normal")
+            self.test_button.config(state="normal")
     
     def print_receipt(self, person: Dict[str, Any], image: Optional[object] = None):
         """Print the receipt to thermal printer."""
@@ -262,7 +296,7 @@ class TCGApp:
             
             # Print header
             printer.set(align='center', bold=True, double_height=True, font='b')
-            printer.text("TCG RECEIPT\n")
+            printer.text("IKT RECEIPT\n")
             printer.ln(1)
             
             # Print person info
@@ -321,7 +355,7 @@ class TCGApp:
             # Print footer
             # printer.set(align='center', bold=False)
             # printer.text("Thank you!\n")
-            printer.ln(4)
+            printer.ln(2)
             
             printer.close()
             print("Receipt printed successfully!")

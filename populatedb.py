@@ -30,7 +30,7 @@ def create_person_record(person: Dict[str, Any]) -> bool:
         # Extract description (use English version)
         description = person.get("description", "")
         if isinstance(description, dict):
-            description = description.get("no", "")
+            description = description.get("en", "")
         
         # Prepare the data for PocketBase
         record_data = {
