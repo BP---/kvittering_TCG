@@ -42,7 +42,7 @@ except ImportError as e:
     PRINTER_AVAILABLE = False
 
 try:
-    from PIL import Image
+    from PIL import Image, ImageTk
     PIL_AVAILABLE = True
 except ImportError as e:
     print(f"PIL not available: {e}")
@@ -412,20 +412,27 @@ class TCGApp:
     
     def take_and_process_photo_custom(self):
         """
-        Custom version of take_and_process_photo that uses configurable image width.
+        Custom version of take_and_process_photo that uses configurable image width
+        and shows a preview before capturing.
         """
         if not CAMERA_AVAILABLE or not PIL_AVAILABLE:
             return None
             
         import time
         from picamera2 import Picamera2
+        import tkinter as tk
+        from tkinter import messagebox
+        from PIL import ImageTk
+        import numpy as np
         
         # The filename for the initial high-resolution capture.
         CAPTURE_FILENAME = "capture.jpg"
         
         picam2 = None
+        captured_image = None
+        
         try:
-            # 1. --- Initialize and capture with the camera ---
+            # 1. --- Initialize camera and show preview ---
             print("Initializing camera...")
             picam2 = Picamera2()
             
@@ -434,14 +441,22 @@ class TCGApp:
             picam2.configure(config)
             
             picam2.start()
-            # It's important to give the camera's sensor a moment to adjust
-            # to light levels, auto-focus, etc.
-            print("Taking picture in 2 seconds...")
-            time.sleep(2)
+            print("Camera started, waiting for auto-adjustment...")
+            time.sleep(2)  # Let camera adjust to lighting conditions
             
-            # Capture the image and save it to a file
-            picam2.capture_file(CAPTURE_FILENAME)
-            print(f"Picture saved as {CAPTURE_FILENAME}")
+            # Show preview window
+            preview_result = self.show_camera_preview(picam2)
+            
+            if preview_result:
+                # User clicked "Take Photo"
+                print("Capturing photo...")
+                picam2.capture_file(CAPTURE_FILENAME)
+                print(f"Picture saved as {CAPTURE_FILENAME}")
+                captured_image = CAPTURE_FILENAME
+            else:
+                # User cancelled
+                print("Photo capture cancelled by user")
+                return None
             
         finally:
             # Ensure proper cleanup of camera resources
@@ -453,27 +468,140 @@ class TCGApp:
                 except Exception as e:
                     print(f"Warning: Error during camera cleanup: {e}")
 
-        # 2. --- Process the image using Pillow ---
-        print(f"Processing image for thermal look (width: {self.image_width})...")
-        with Image.open(CAPTURE_FILENAME) as img:
-            # Resize the image to the configured width, maintaining aspect ratio
-            original_width, original_height = img.size
-            aspect_ratio = original_height / float(original_width)
-            new_height = int(self.image_width * aspect_ratio)
-            resized_img = img.resize((self.image_width, new_height))
+        # 2. --- Process the captured image ---
+        if captured_image:
+            print(f"Processing image for thermal look (width: {self.image_width})...")
+            with Image.open(captured_image) as img:
+                # Resize the image to the configured width, maintaining aspect ratio
+                original_width, original_height = img.size
+                aspect_ratio = original_height / float(original_width)
+                new_height = int(self.image_width * aspect_ratio)
+                resized_img = img.resize((self.image_width, new_height))
 
-            # Convert to grayscale ('L' mode in Pillow)
-            grayscale_img = resized_img.convert('L')
+                # Convert to grayscale ('L' mode in Pillow)
+                grayscale_img = resized_img.convert('L')
 
-            # DITHERING: This is the most important step!
-            # It converts the grayscale image to pure black and white ('1' mode)
-            # using a pattern of dots to simulate shades of gray. This looks
-            # much better on a thermal printer than simple thresholding.
-            # Floyd-Steinberg is a popular and effective dithering algorithm.
-            dithered_img = grayscale_img.convert('1', dither=Image.Dither.FLOYDSTEINBERG)
-            
-            print("Image processing complete.")
-            return dithered_img
+                # DITHERING: This is the most important step!
+                # It converts the grayscale image to pure black and white ('1' mode)
+                # using a pattern of dots to simulate shades of gray. This looks
+                # much better on a thermal printer than simple thresholding.
+                # Floyd-Steinberg is a popular and effective dithering algorithm.
+                dithered_img = grayscale_img.convert('1', dither=Image.Dither.FLOYDSTEINBERG)
+                
+                print("Image processing complete.")
+                return dithered_img
+        
+        return None
+    
+    def show_camera_preview(self, picam2):
+        """
+        Show a preview window with the camera feed and capture controls.
+        Returns True if photo should be taken, False if cancelled.
+        """
+        # Create preview window
+        preview_window = tk.Toplevel(self.root)
+        preview_window.title("Camera Preview")
+        preview_window.geometry("640x480")
+        preview_window.transient(self.root)
+        preview_window.grab_set()  # Modal dialog
+        
+        # Center the preview window
+        preview_window.update_idletasks()
+        x = (preview_window.winfo_screenwidth() // 2) - (640 // 2)
+        y = (preview_window.winfo_screenheight() // 2) - (480 // 2)
+        preview_window.geometry(f"640x480+{x}+{y}")
+        
+        # Variables to track user choice
+        user_choice = {"take_photo": False}
+        
+        # Create UI elements
+        main_frame = ttk.Frame(preview_window, padding="10")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Instructions
+        instruction_label = ttk.Label(main_frame, 
+                                    text="Position your subject and click 'Take Photo' when ready",
+                                    font=("Arial", 10))
+        instruction_label.pack(pady=(0, 10))
+        
+        # Image display label
+        image_label = ttk.Label(main_frame)
+        image_label.pack(expand=True)
+        
+        # Button frame
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(side=tk.BOTTOM, fill=tk.X, pady=(10, 0))
+        
+        # Buttons
+        def take_photo():
+            user_choice["take_photo"] = True
+            preview_window.destroy()
+        
+        def cancel():
+            user_choice["take_photo"] = False
+            preview_window.destroy()
+        
+        take_button = ttk.Button(button_frame, text="Take Photo", 
+                               command=take_photo, style="Accent.TButton")
+        take_button.pack(side=tk.LEFT, padx=(0, 10), ipadx=20, ipady=5)
+        
+        cancel_button = ttk.Button(button_frame, text="Cancel", 
+                                 command=cancel)
+        cancel_button.pack(side=tk.LEFT, ipadx=20, ipady=5)
+        
+        # Update preview image function
+        def update_preview():
+            try:
+                if preview_window.winfo_exists():
+                    # Capture a preview frame (low resolution for speed)
+                    array = picam2.capture_array()
+                    
+                    # Convert to PIL Image
+                    if len(array.shape) == 3:  # Color image
+                        pil_image = Image.fromarray(array, 'RGB')
+                    else:  # Grayscale
+                        pil_image = Image.fromarray(array, 'L')
+                    
+                    # Resize for display (maintain aspect ratio)
+                    display_size = (400, 300)  # Preview size
+                    pil_image.thumbnail(display_size, Image.Resampling.LANCZOS)
+                    
+                    # Convert to PhotoImage for tkinter
+                    photo = ImageTk.PhotoImage(pil_image)
+                    
+                    # Update the label
+                    image_label.configure(image=photo)
+                    image_label.image = photo  # Keep a reference
+                    
+                    # Schedule next update
+                    preview_window.after(100, update_preview)  # Update every 100ms
+            except Exception as e:
+                print(f"Preview update error: {e}")
+                # Continue trying to update
+                if preview_window.winfo_exists():
+                    preview_window.after(200, update_preview)
+        
+        # Start preview updates
+        preview_window.after(100, update_preview)
+        
+        # Handle window close
+        def on_closing():
+            user_choice["take_photo"] = False
+            preview_window.destroy()
+        
+        preview_window.protocol("WM_DELETE_WINDOW", on_closing)
+        
+        # Bind Enter key to take photo, Escape to cancel
+        preview_window.bind('<Return>', lambda e: take_photo())
+        preview_window.bind('<KP_Enter>', lambda e: take_photo())
+        preview_window.bind('<Escape>', lambda e: cancel())
+        
+        preview_window.focus_set()
+        
+        # Wait for user to make a choice
+        preview_window.wait_window()
+        
+        return user_choice["take_photo"]
     
     def wrap_text(self, text: str, width: int) -> list:
         """Wrap text to specified width."""
