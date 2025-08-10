@@ -495,8 +495,8 @@ class TCGApp:
     
     def show_camera_preview(self, picam2):
         """
-        Show a preview window with the camera feed and capture controls.
-        Returns True if photo should be taken, False if cancelled.
+        Show a preview window with the camera feed and automatically capture after countdown.
+        Returns True if photo was taken, False if cancelled.
         """
         # Create preview window
         preview_window = tk.Toplevel(self.root)
@@ -511,18 +511,25 @@ class TCGApp:
         y = (preview_window.winfo_screenheight() // 2) - (480 // 2)
         preview_window.geometry(f"640x480+{x}+{y}")
         
-        # Variables to track user choice
-        user_choice = {"take_photo": False}
+        # Variables to track state
+        user_choice = {"take_photo": True, "cancelled": False}
+        countdown = {"seconds": 3}  # 3 second countdown
         
         # Create UI elements
         main_frame = ttk.Frame(preview_window, padding="10")
         main_frame.pack(fill=tk.BOTH, expand=True)
         
-        # Instructions
+        # Instructions and countdown
         instruction_label = ttk.Label(main_frame, 
-                                    text="Position your subject and click 'Take Photo' when ready",
+                                    text="Position your subject - Photo will be taken automatically",
                                     font=("Arial", 10))
-        instruction_label.pack(pady=(0, 10))
+        instruction_label.pack(pady=(0, 5))
+        
+        countdown_label = ttk.Label(main_frame, 
+                                  text=f"Taking photo in {countdown['seconds']} seconds...",
+                                  font=("Arial", 12, "bold"),
+                                  foreground="red")
+        countdown_label.pack(pady=(0, 10))
         
         # Image display label
         image_label = ttk.Label(main_frame)
@@ -532,27 +539,34 @@ class TCGApp:
         button_frame = ttk.Frame(main_frame)
         button_frame.pack(side=tk.BOTTOM, fill=tk.X, pady=(10, 0))
         
-        # Buttons
-        def take_photo():
-            user_choice["take_photo"] = True
-            preview_window.destroy()
-        
+        # Cancel button (only option now)
         def cancel():
             user_choice["take_photo"] = False
+            user_choice["cancelled"] = True
             preview_window.destroy()
-        
-        take_button = ttk.Button(button_frame, text="Take Photo", 
-                               command=take_photo, style="Accent.TButton")
-        take_button.pack(side=tk.LEFT, padx=(0, 10), ipadx=20, ipady=5)
         
         cancel_button = ttk.Button(button_frame, text="Cancel", 
                                  command=cancel)
         cancel_button.pack(side=tk.LEFT, ipadx=20, ipady=5)
         
+        # Countdown function
+        def update_countdown():
+            if user_choice["cancelled"]:
+                return
+                
+            if countdown["seconds"] > 0:
+                countdown_label.config(text=f"Taking photo in {countdown['seconds']} seconds...")
+                countdown["seconds"] -= 1
+                preview_window.after(1000, update_countdown)  # Update every second
+            else:
+                countdown_label.config(text="Taking photo now!", foreground="green")
+                # Take photo after a brief moment
+                preview_window.after(500, lambda: preview_window.destroy())
+        
         # Update preview image function
         def update_preview():
             try:
-                if preview_window.winfo_exists():
+                if preview_window.winfo_exists() and not user_choice["cancelled"]:
                     # Capture a preview frame (low resolution for speed)
                     array = picam2.capture_array()
                     
@@ -578,30 +592,30 @@ class TCGApp:
             except Exception as e:
                 print(f"Preview update error: {e}")
                 # Continue trying to update
-                if preview_window.winfo_exists():
+                if preview_window.winfo_exists() and not user_choice["cancelled"]:
                     preview_window.after(200, update_preview)
         
-        # Start preview updates
+        # Start preview updates and countdown
         preview_window.after(100, update_preview)
+        preview_window.after(1000, update_countdown)  # Start countdown after 1 second
         
         # Handle window close
         def on_closing():
             user_choice["take_photo"] = False
+            user_choice["cancelled"] = True
             preview_window.destroy()
         
         preview_window.protocol("WM_DELETE_WINDOW", on_closing)
         
-        # Bind Enter key to take photo, Escape to cancel
-        preview_window.bind('<Return>', lambda e: take_photo())
-        preview_window.bind('<KP_Enter>', lambda e: take_photo())
+        # Bind Escape to cancel
         preview_window.bind('<Escape>', lambda e: cancel())
         
         preview_window.focus_set()
         
-        # Wait for user to make a choice
+        # Wait for window to close
         preview_window.wait_window()
         
-        return user_choice["take_photo"]
+        return user_choice["take_photo"] and not user_choice["cancelled"]
     
     def wrap_text(self, text: str, width: int) -> list:
         """Wrap text to specified width."""
