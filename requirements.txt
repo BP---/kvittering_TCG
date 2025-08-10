@@ -3,3 +3,5 @@ pillow
 escpos
 requests
 python-escpos
+numpy
+picamera2
