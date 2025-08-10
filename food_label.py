@@ -90,6 +90,6 @@ def test_print():
 # --- Run the test print ---
 if __name__ == "__main__":
     print("Running encoding test...")
-    test_encoding_options()
+    #test_encoding_options()
     print("\nRunning regular print test...")
     test_print()
