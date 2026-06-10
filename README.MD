@@ -107,7 +107,33 @@ python main.py
 
 ## 🎯 Usage
 
-### Basic Usage
+### Web Server Mode (recommended for networked setups)
+
+Run the FastAPI server on the Raspberry Pi and control the printer from any laptop connected to the same network (e.g. via an ethernet switch):
+
+```bash
+# Start PocketBase first (see above), then:
+python webapp.py
+# or with uvicorn directly:
+uvicorn webapp:app --host 0.0.0.0 --port 8000
+```
+
+Then open `http://<pi-ip>:8000` in a browser on any connected laptop. The web interface lets you:
+- **Print text**: type anything into the text box and hit *Print*
+- **Generate TCG Receipt**: triggers the full receipt flow (random person + camera photo + thermal print + database record)
+
+#### API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/` | Web interface |
+| `POST` | `/api/print-text` | Print arbitrary text. Body: `{"text": "..."}` |
+| `POST` | `/api/receipt` | Run the TCG receipt flow. Optional body: `{"testing": true}` skips the database save |
+| `GET` | `/api/health` | Reports printer/camera/database availability |
+
+> **Note:** The endpoints are intentionally unauthenticated — this is designed for a closed network with no public internet connection. To serve on port 80 on the Pi (so the bare IP works without a port), run uvicorn with `sudo` or via a systemd service: `uvicorn webapp:app --host 0.0.0.0 --port 80`.
+
+### GUI Mode (original tkinter app)
 ```bash
 python main.py
 ```
