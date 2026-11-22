@@ -5,3 +5,5 @@ requests
 python-escpos
 numpy
 picamera2
+fastapi
+uvicorn
